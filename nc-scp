@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+#set -vux
+#
+# nc-scp
+# © Olivetti 2023
+#
+# https://www.netcup-wiki.de/wiki/Netcup_SCP_Webservice
+# https://www.servercontrolpanel.de/WSEndUser?wsdl
+# https://www.servercontrolpanel.de/WSEndUser?xsd=1
+#
+# dependencies:	curl, xmlstarlet
+# recommended:	pass
+#
+# todo:
+# get traffic # tod/tom
+
+version="v0.2"
+
+usage() { echo "${0##*/} ${version} usage:" && grep -E "[[:space:]].)[[:space:]]+#" $0 | sed -e 's/)|#//g' -e 's/^ +/ -/g'; exit; }
+[[ ${#} -eq 0 ]] && usage
+
+# Credentials in env
+source "${0%/*}/env"
+server="${server1}"
+
+while getopts ":h12ansiuz3456789" opt
+ do
+  case "${opt}" in
+   1)	# server server1
+	server="${server1}" ;;
+   2)	# server server2
+	server="${server2}" ;;
+   a)	# get vservers
+	tns="getVServers" ;;
+   n)	# get vserver nickname
+	tns="getVServerNickname" ;;
+   s)	# get vserver state
+	tns="getVServerState" ;;
+   i)	# get vserver ips
+	tns="getVServerIPs" ;;
+   u)	# get vserver uptime
+	tns="getVServerUptime" ;;
+   z)	# get vserver update notification
+	tns="getVServerUpdateNotification" ;;
+   3)	# start vserver
+	tns="startVServer" ;;
+   4)	# stop vserver
+	tns="stopVServer" ;;
+   5)	# vserver start
+	tns="vServerStart" ;;
+   6)	# vserver poweroff
+	tns="vServerPoweroff" ;;
+   7)	# vserver acpi reboot
+	tns="vServerACPIReboot" ;;
+   8)	# vserver acpi shutdown
+	tns="vServerACPIShutdown" ;;
+   9)	# get vserver information # not on kvm
+	tns="getVServerInformation" ;;
+   h|?)	# Display help
+	usage; exit 1 ;;
+  esac
+ done
+ shift $((OPTIND-1))
+
+return=$(curl -sN -H "Content-Type: text/xml; charset=utf-8" -H "SOAPAction:" -X POST "https://www.servercontrolpanel.de/WSEndUser" \
+	 -d "<soapenv:Envelope \
+	      xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" \
+	      xmlns:tns=\"http://enduser.service.web.vcp.netcup.de/\"> \
+	      <soapenv:Body> \
+	       <tns:${tns}> \
+	          <loginName>${cid}</loginName> \
+	           <password>${wspw}</password> \
+	        <vserverName>${server}</vserverName> \
+	       </tns:${tns}> \
+	      </soapenv:Body> \
+	     </soapenv:Envelope>" | xmlstarlet sel -t -v '//return' -v '//faultstring')
+
+#echo -e "${return}"
+echo -e "Server:  ${server}\nCommand: ${tns}\nReturn:  ${return}\n"
+
+
+###
+# tns="vServerResume"
+# tns="vServerSuspend"
+# tns="vServerRestore"
+# tns="vServerReset"
+#
+# tns="getVServerTrafficOfDay"
+# tns="getVServerTrafficOfMonth"
+# year="2022"
+# month="01"
+# day="01"
+#               <year>${year}</year> \
+#              <month>${month}</month> \
+#                <day>${day}</day> \
+#
+# tns="getVServerStatToken"
+# Mit dem TOKEN können über folgende URL CSV-Dateien mit Statistiken geladen werden
+# https://www.servercontrolpanel.de/SCP/StatsViewer?type=TYPE&TimeRange=TIMERANGE&token=TOKEN
+#
+# tns="getVServerInformation"   # not on kvm
+# tns="getVServerLoad"          # not on kvm
+# tns="getVServerProcesses"     # not on kvm
+# tns="getVServerLogEntryCount" # not on kvm
+# tns="getVServerLogEntries"    # not on kvm
+###
+
+###
+# CURL_BODY='<soapenv:Envelope \
+#  xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" \
+#  xmlns:tns="http://enduser.service.web.vcp.netcup.de/"> \
+#  <soapenv:Body> \
+#   <tns:changeIPRouting> \
+#    <loginName>LOGINNAME</loginName> \
+#    <password>PASSWORD</password> \
+#    <routedIP>FAILOVERIP</routedIP> \
+#    <routedMask>32</routedMask> \
+#    <destinationVserverName>DESTINATIONVSERVER</destinationVserverName> \
+#    <destinationInterfaceMAC>DESTINATIONMAC</destinationInterfaceMAC> \
+#   </tns:changeIPRouting> \
+#  </soapenv:Body> \
+# </soapenv:Envelope>'
+
+# CURL_OUTPUT=$(curl -sN \
+#  -H "Content-Type: text/xml; charset=utf-8" -H "SOAPAction:" -X POST "https://www.servercontrolpanel.de/WSEndUser?xsd=1" \
+#  -d "${CURL_BODY}")
+
+# printf "Subject: DESTINATIONVSERVER now master\n\nBody:\n${CURL_BODY}\n\nResponse:\n${CURL_OUTPUT}" | ssmtp man@email.com
+###
+
+###
+# <?xml version="1.0" encoding="UTF-8"?>
+# <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="http://enduser.service.web.vcp.netcup.de/">
+# 	<SOAP-ENV:Body>
+# 		<ns1:changeIPRouting>
+# 			<loginName>11111</loginName>
+# 			<password>123456789</password>
+# 			<routedIP>1.2.3.4</routedIP>
+# 			<routedMask>32</routedMask>
+# 			<destinationVserverName>v1234567890</destinationVserverName>
+# 			<destinationInterfaceMAC>11:22:33:44:55:66</destinationInterfaceMAC>
+# 		</ns1:changeIPRouting>
+# 	</SOAP-ENV:Body>
+# </SOAP-ENV:Envelope>
+#
+# ###
+#
+# #!/usr/bin/env bash
+# # set -eux
+# set -eu
+#
+# file="${1}"
+#
+# # Netcup URLs
+# # https://www.netcup-wiki.de/wiki/Netcup_SCP_Webservice
+# domain="www.servercontrolpanel.de"
+#   wsdl="https://www.servercontrolpanel.de/WSEndUser?wsdl"
+#    api="https://www.servercontrolpanel.de/WSEndUser"
+#
+# curl -sfSL -w '%{http_code}' -H 'Content-Type: text/xml; charset=utf-8' -H 'SOAPAction:' -d @"${file}" -X POST "${api}"
+###

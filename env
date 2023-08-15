@@ -1,0 +1,16 @@
+### Credentials
+#     cid=YOUR_CUSTOMERNUMBER
+#    wspw=YOUR_WEBSERVICE_PASSWORD
+# server1=YOUR_SERVER_NAME
+# server2=v220…
+#
+# or use pass (https://passwordstore.org)
+#     cid=$(pass scp/netcup/cid)
+#    wspw=$(pass scp/netcup/wspw)
+# server1=$(pass scp/netcup/server1)
+# server1=$(pass scp/netcup/server2)
+
+    cid=""
+   wspw=""
+server1="v220…"
+server2=""
