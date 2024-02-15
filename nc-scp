@@ -75,7 +75,6 @@ return=$(curl -sN -H "Content-Type: text/xml; charset=utf-8" -H "SOAPAction:" -X
 	      </soapenv:Body> \
 	     </soapenv:Envelope>" | xmlstarlet sel -t -v '//return' -v '//faultstring')
 
-#echo -e "${return}"
 echo -e "Server:  ${server}\nCommand: ${tns}\nReturn:  ${return}\n"
 
 

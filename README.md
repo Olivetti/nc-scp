@@ -10,8 +10,8 @@
 
 ### Installation
 1. [Download & unpack](https://github.com/Olivetti/nc-scp/releases/latest/download/nc-scp.tar.gz)
-2. Set executable   ```chmod +x nc-scp```
-3. Edit credentials ```nano env```
+2. Set executable   `chmod +x nc-scp`
+3. Edit credentials `nano env`
 
 ### Usage
 - ./nc-scp -h
