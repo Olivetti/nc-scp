@@ -1,4 +1,4 @@
-# nc-scp v0.2
+# nc-scp v0.3
 **nc-scp** is a management tool for [netcup's scp api](https://netcup-wiki.de/wiki/Netcup_SCP_Webservice)
 
 ### Dependencies

@@ -2,7 +2,7 @@
 #set -vux
 #
 # nc-scp
-# © Olivetti 2023
+# © Olivetti 2023-2024
 #
 # https://www.netcup-wiki.de/wiki/Netcup_SCP_Webservice
 # https://www.servercontrolpanel.de/WSEndUser?wsdl
@@ -12,9 +12,10 @@
 # recommended:	pass
 #
 # todo:
-# get traffic # tod/tom
+# stats
+# traffic # tod/tom
 
-version="v0.2"
+version="v0.3"
 
 usage() { echo "${0##*/} ${version} usage:" && grep -E "[[:space:]].)[[:space:]]+#" $0 | sed -e 's/)|#//g' -e 's/^ +/ -/g'; exit; }
 [[ ${#} -eq 0 ]] && usage
@@ -23,7 +24,27 @@ usage() { echo "${0##*/} ${version} usage:" && grep -E "[[:space:]].)[[:space:]]
 source "${0%/*}/env"
 server="${server1}"
 
-while getopts ":h12ansiuz3456789" opt
+url="https://www.servercontrolpanel.de/WSEndUser"
+
+get_ymd() {
+	  now=$(date +'%Y-%m-%d')
+	 date=${1:-$now}
+	 year="${date:0:4}"
+	month="${date:5:2}"
+	  day="${date:8:2}"
+}
+
+getopts_get_optional_argument() {
+	eval next_token=\${$OPTIND}
+	if [[ -n ${next_token} && ${next_token} != -* ]]; then
+		OPTIND=$((OPTIND + 1))
+		OPTARG=${next_token}
+	else
+		OPTARG=""
+	fi
+}
+
+while getopts ":h12ansiuz3456789bcdefgjkm:op" opt
  do
   case "${opt}" in
    1)	# server server1
@@ -54,54 +75,129 @@ while getopts ":h12ansiuz3456789" opt
 	tns="vServerACPIReboot" ;;
    8)	# vserver acpi shutdown
 	tns="vServerACPIShutdown" ;;
-   9)	# get vserver information # not on kvm
+   9)	# vserver suspend
+	tns="vServerSuspend" ;;
+   b)	# vserver resume
+	tns="vServerResume" ;;
+   c)	# vserver restore		# not active
+	#tns="vServerRestore" ;;
+	tns="" ;;			# not active
+   d)	# vserver reset
+	#tns="vServerReset" ;;
+	tns="" ;;
+   e)	# get vserver information	# nok (not on kvm)
 	tns="getVServerInformation" ;;
+   f)	# get vserver load		# nok
+	tns="getVServerLoad" ;;
+   g)	# get vserver processes		# nok
+	tns="getVServerProcesses" ;;
+   j)	# get vserver log entry count	# nok
+	tns="getVServerLogEntryCount" ;;
+   k)	# get vserver log entries	# nok
+	tns="getVServerLogEntries" ;;
+   m)	# manual input (eg. getVServerStatToken)
+	tns=${OPTARG} ;;
+   o)	# get vserver traffic of day   (isodate 2024-01-01)
+	tns="getVServerTrafficOfDay"
+	getopts_get_optional_argument ${@}
+	get_ymd ${OPTARG}
+	echo -e "Date:\t${date}" ;;
+   p)	# get vserver traffic of month (isodate 2024-01-01)
+	tns="getVServerTrafficOfMonth"
+	getopts_get_optional_argument ${@}
+	get_ymd ${OPTARG}
+	echo -e "Date:\t${date}" ;;
    h|?)	# Display help
-	usage; exit 1 ;;
+	usage ;;
   esac
  done
  shift $((OPTIND-1))
 
-return=$(curl -sN -H "Content-Type: text/xml; charset=utf-8" -H "SOAPAction:" -X POST "https://www.servercontrolpanel.de/WSEndUser" \
-	 -d "<soapenv:Envelope \
-	      xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" \
-	      xmlns:tns=\"http://enduser.service.web.vcp.netcup.de/\"> \
-	      <soapenv:Body> \
-	       <tns:${tns}> \
-	          <loginName>${cid}</loginName> \
-	           <password>${wspw}</password> \
-	        <vserverName>${server}</vserverName> \
-	       </tns:${tns}> \
-	      </soapenv:Body> \
-	     </soapenv:Envelope>" | xmlstarlet sel -t -v '//return' -v '//faultstring')
+return=$(curl -sN -H "Content-Type: text/xml; charset=utf-8" -H "SOAPAction:" -X POST "${url}"	\
+	-d "<soapenv:Envelope									\
+		xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"			\
+		xmlns:tns=\"http://enduser.service.web.vcp.netcup.de/\">			\
+		<soapenv:Body>									\
+			<tns:${tns}>								\
+			    <loginName>${cid}</loginName>					\
+			     <password>${wspw}</password>					\
+			  <vserverName>${server}</vserverName>					\
+				 <year>${year}</year>						\
+				<month>${month}</month>						\
+				  <day>${day}</day>						\
+			</tns:${tns}>								\
+		</soapenv:Body>									\
+	    </soapenv:Envelope>" | xmlstarlet sel -t -v '//return' -v '//faultstring')
 
-echo -e "Server:  ${server}\nCommand: ${tns}\nReturn:  ${return}\n"
+[[ "${return}" =~ $'\n' ]] && nl="\n" || nl=""
+
+echo -e "Server:\t${server}\nAction:\t${tns}\n->\t${nl}${return}\n"
 
 
 ###
-# tns="vServerResume"
-# tns="vServerSuspend"
-# tns="vServerRestore"
-# tns="vServerReset"
+# curl -sS "https://www.servercontrolpanel.de/WSEndUser?wsdl" | grep -iv 'response' | grep '<message name=' | sed -e 's/^<message name="//' -e 's/">$//'
 #
+# -a getVServers
+# -n getVServerNickname
+# -s getVServerState
+# -i getVServerIPs
+# -u getVServerUptime
+# -z getVServerUpdateNotification
+# -3 startVServer
+# -4 stopVServer
+# -5 vServerStart
+# -6 vServerPoweroff
+# -7 vServerACPIReboot
+# -8 vServerACPIShutdown
+
+# -9 vServerSuspend
+# -b vServerResume
+# -c vServerRestore
+# -d vServerReset
+
+# -e getVServerInformation   # nok
+# -f getVServerLoad          # nok
+# -g getVServerProcesses     # nok
+
+# -j getVServerLogEntryCount
+# -k getVServerLogEntries
+
+# getLoginToken
+# getPanelSettings
+# getUserData
+
+# getVServerStatToken
+# getVServerTrafficOfDay
+# getVServerTrafficOfMonth
+
+# setVServerNickname
+# sendPasswordResetRequest
+# setPanelSettings
+
+# addCloudVLANInterface
+# changeIPRouting
+# changeUserPassword
+###
+
+###
+# get vserver stats
+# tns="getVServerStatToken"
+# https://www.servercontrolpanel.de/SCP/StatsViewer?type=TYPE&TimeRange=TIMERANGE&token=TOKEN
+# TOKEN = getVServerStatToken
+# TYPE = cpu, iops, pps, traffic
+# TIMERANGE = 6, 24, 168, 744
+###
+
+###
+# get vserver traffic
 # tns="getVServerTrafficOfDay"
 # tns="getVServerTrafficOfMonth"
-# year="2022"
+#  year="2024"
 # month="01"
-# day="01"
-#               <year>${year}</year> \
-#              <month>${month}</month> \
-#                <day>${day}</day> \
-#
-# tns="getVServerStatToken"
-# Mit dem TOKEN können über folgende URL CSV-Dateien mit Statistiken geladen werden
-# https://www.servercontrolpanel.de/SCP/StatsViewer?type=TYPE&TimeRange=TIMERANGE&token=TOKEN
-#
-# tns="getVServerInformation"   # not on kvm
-# tns="getVServerLoad"          # not on kvm
-# tns="getVServerProcesses"     # not on kvm
-# tns="getVServerLogEntryCount" # not on kvm
-# tns="getVServerLogEntries"    # not on kvm
+#   day="01"
+#  <year>${year}</year>		\
+# <month>${month}</month>	\
+#   <day>${day}</day>		\
 ###
 
 ###
